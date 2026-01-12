@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 import os
 import json
 from app.models import db, Batch, Check
+from app.ocr import CheckOCR
 from app.processor import start_batch_processing
 from app.hubspot import HubSpotClient
 
@@ -40,6 +41,15 @@ def upload_form():
 def create_batch():
     """Create new batch and start processing"""
     try:
+        missing_dependencies = CheckOCR.missing_system_dependencies()
+        if missing_dependencies:
+            missing_list = ", ".join(missing_dependencies)
+            return jsonify({
+                'error': (
+                    "OCR system dependencies are missing. Install with: "
+                    f"sudo apt install -y {missing_list}"
+                )
+            }), 500
         # Validate input
         if 'pdf_file' not in request.files:
             return jsonify({'error': 'No file uploaded'}), 400
