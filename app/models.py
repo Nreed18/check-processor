@@ -141,3 +141,21 @@ class Check(db.Model):
             'processed': self.processed,
             'submitted': self.submitted,
         }
+
+
+def _truncate_string_fields(target):
+    for column in target.__table__.columns:
+        if hasattr(column.type, "length") and column.type.length:
+            value = getattr(target, column.name)
+            if isinstance(value, str) and len(value) > column.type.length:
+                setattr(target, column.name, value[:column.type.length])
+
+
+@event.listens_for(Check, "before_insert")
+def truncate_check_strings_before_insert(mapper, connection, target):
+    _truncate_string_fields(target)
+
+
+@event.listens_for(Check, "before_update")
+def truncate_check_strings_before_update(mapper, connection, target):
+    _truncate_string_fields(target)
