@@ -1,0 +1,301 @@
+{% extends "base.html" %}
+
+{% block title %}Review Batch{% endblock %}
+
+{% block content %}
+<div class="review-container">
+    <div class="batch-header">
+        <div>
+            <h2>{{ batch.batch_name }}</h2>
+            <p>Batch #{{ batch.batch_number }} | {{ batch.appeal_type }}</p>
+        </div>
+        <div class="batch-totals">
+            <div class="total-box">
+                <strong>Running Total:</strong>
+                <div id="runningTotal" class="total-amount">${{ '%.2f'|format(batch.actual_total) }}</div>
+            </div>
+            <div class="total-box">
+                <strong>Expected:</strong>
+                <div class="expected-amount">${{ '%.2f'|format(batch.expected_total) }}</div>
+            </div>
+            <div id="differenceBox" class="total-box">
+                <strong>Difference:</strong>
+                <div id="difference" class="difference-amount">$0.00</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="batch-actions">
+        <a href="{{ url_for('main.index') }}" class="btn btn-secondary">Back to Batches</a>
+        <button id="submitBatchBtn" class="btn btn-success" {% if batch.status != 'completed' %}disabled{% endif %}>
+            Submit to HubSpot
+        </button>
+    </div>
+
+    <div class="checks-list">
+        {% for check in checks %}
+        <div class="check-card" data-check-id="{{ check.id }}">
+            <div class="check-header">
+                <div>
+                    <strong>Check #{{ check.sequence_number }}</strong>
+                    {% if check.is_money_order %}
+                    <span class="flag flag-money-order">🚨 MONEY ORDER</span>
+                    {% elif check.is_no_address %}
+                    <span class="flag flag-no-address">⚠️ NO ADDRESS</span>
+                    {% elif check.match_confidence == 'none' %}
+                    <span class="flag flag-no-match">⚠️ NO MATCH</span>
+                    {% elif check.match_confidence == 'fuzzy' %}
+                    <span class="flag flag-fuzzy">⚠️ FUZZY MATCH</span>
+                    {% elif check.match_confidence == 'exact' %}
+                    <span class="flag flag-exact">✓ MATCHED</span>
+                    {% endif %}
+                </div>
+                <div>
+                    <label>
+                        <input type="checkbox" class="exclude-check" data-check-id="{{ check.id }}" {% if check.excluded %}checked{% endif %}>
+                        Exclude from batch
+                    </label>
+                </div>
+            </div>
+
+            <div class="check-body">
+                <div class="check-image">
+                    {% if check.front_image_path %}
+                    <img src="data:image/png;base64,{{ check.front_image_path }}" alt="Check front">
+                    {% endif %}
+                </div>
+
+                <div class="check-fields">
+                    <div class="field-group">
+                        <label>Amount:</label>
+                        <input type="number" class="edit-field" data-field="amount" value="{{ check.amount or '' }}" step="0.01">
+                    </div>
+
+                    <div class="field-group">
+                        <label>Check Date:</label>
+                        <input type="date" class="edit-field" data-field="check_date" value="{{ check.check_date.isoformat() if check.check_date else '' }}">
+                    </div>
+
+                    <div class="field-group">
+                        <label>Check Number:</label>
+                        <input type="text" class="edit-field" data-field="check_number" value="{{ check.check_number or '' }}">
+                    </div>
+
+                    <div class="field-group">
+                        <label>Name:</label>
+                        <input type="text" class="edit-field search-field" data-field="payee_name" data-search-type="name" value="{{ check.payee_name or '' }}">
+                        <div class="search-results" style="display: none;"></div>
+                    </div>
+
+                    <div class="field-group">
+                        <label>Address:</label>
+                        <input type="text" class="edit-field search-field" data-field="address_line1" data-search-type="address" value="{{ check.address_line1 or '' }}">
+                        <div class="search-results" style="display: none;"></div>
+                    </div>
+
+                    <div class="field-row">
+                        <div class="field-group">
+                            <label>City:</label>
+                            <input type="text" class="edit-field" data-field="city" value="{{ check.city or '' }}">
+                        </div>
+
+                        <div class="field-group">
+                            <label>State:</label>
+                            <input type="text" class="edit-field" data-field="state" value="{{ check.state or '' }}" maxlength="2">
+                        </div>
+
+                        <div class="field-group">
+                            <label>ZIP:</label>
+                            <input type="text" class="edit-field" data-field="zip_code" value="{{ check.zip_code or '' }}">
+                        </div>
+                    </div>
+
+                    {% if check.hubspot_contact_id %}
+                    <div class="contact-info">
+                        ✓ Linked to contact: {{ check.hubspot_contact_id }}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="check-actions">
+                <button class="btn btn-small save-check" data-check-id="{{ check.id }}">Save Changes</button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<script>
+const batchId = {{ batch.id }};
+const expectedTotal = {{ batch.expected_total }};
+
+// Calculate and update totals
+function updateTotals() {
+    let runningTotal = 0;
+    document.querySelectorAll('.check-card').forEach(card => {
+        const excluded = card.querySelector('.exclude-check').checked;
+        if (!excluded) {
+            const amountInput = card.querySelector('[data-field="amount"]');
+            const amount = parseFloat(amountInput.value) || 0;
+            runningTotal += amount;
+        }
+    });
+    
+    document.getElementById('runningTotal').textContent = '$' + runningTotal.toFixed(2);
+    
+    const difference = runningTotal - expectedTotal;
+    const diffElement = document.getElementById('difference');
+    diffElement.textContent = '$' + Math.abs(difference).toFixed(2);
+    
+    if (Math.abs(difference) < 0.01) {
+        diffElement.className = 'difference-amount match';
+        diffElement.textContent = '✓ MATCH';
+    } else if (difference > 0) {
+        diffElement.className = 'difference-amount over';
+        diffElement.textContent = '+$' + difference.toFixed(2) + ' OVER';
+    } else {
+        diffElement.className = 'difference-amount short';
+        diffElement.textContent = '-$' + Math.abs(difference).toFixed(2) + ' SHORT';
+    }
+}
+
+// Save check changes
+document.querySelectorAll('.save-check').forEach(btn => {
+    btn.addEventListener('click', async () => {
+        const checkId = btn.dataset.checkId;
+        const card = document.querySelector(`.check-card[data-check-id="${checkId}"]`);
+        
+        const data = {};
+        card.querySelectorAll('.edit-field').forEach(input => {
+            data[input.dataset.field] = input.value;
+        });
+        
+        try {
+            const response = await fetch(`/api/check/${checkId}`, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+            
+            if (response.ok) {
+                btn.textContent = '✓ Saved';
+                setTimeout(() => btn.textContent = 'Save Changes', 2000);
+                updateTotals();
+            }
+        } catch (error) {
+            alert('Error saving: ' + error.message);
+        }
+    });
+});
+
+// Exclude checkbox handling
+document.querySelectorAll('.exclude-check').forEach(checkbox => {
+    checkbox.addEventListener('change', async () => {
+        const checkId = checkbox.dataset.checkId;
+        
+        try {
+            await fetch(`/api/check/${checkId}`, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ excluded: checkbox.checked })
+            });
+            updateTotals();
+        } catch (error) {
+            alert('Error: ' + error.message);
+        }
+    });
+});
+
+// Contact search with debounce
+let searchTimeout;
+document.querySelectorAll('.search-field').forEach(input => {
+    input.addEventListener('input', () => {
+        clearTimeout(searchTimeout);
+        const resultsDiv = input.nextElementSibling;
+        
+        if (input.value.length < 3) {
+            resultsDiv.style.display = 'none';
+            return;
+        }
+        
+        searchTimeout = setTimeout(async () => {
+            try {
+                const response = await fetch('/api/contacts/search', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        query: input.value,
+                        type: input.dataset.searchType
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.results && data.results.length > 0) {
+                    resultsDiv.innerHTML = data.results.map(contact => `
+                        <div class="search-result" data-contact='${JSON.stringify(contact)}'>
+                            <strong>${contact.name}</strong><br>
+                            ${contact.address}, ${contact.city}, ${contact.state} ${contact.zip}
+                        </div>
+                    `).join('');
+                    resultsDiv.style.display = 'block';
+                } else {
+                    resultsDiv.style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Search error:', error);
+            }
+        }, 300);
+    });
+});
+
+// Handle search result selection
+document.addEventListener('click', (e) => {
+    if (e.target.closest('.search-result')) {
+        const resultDiv = e.target.closest('.search-result');
+        const contact = JSON.parse(resultDiv.dataset.contact);
+        const card = resultDiv.closest('.check-card');
+        
+        // Fill in all contact fields
+        card.querySelector('[data-field="payee_name"]').value = contact.name;
+        card.querySelector('[data-field="address_line1"]').value = contact.address;
+        card.querySelector('[data-field="city"]').value = contact.city;
+        card.querySelector('[data-field="state"]').value = contact.state;
+        card.querySelector('[data-field="zip_code"]').value = contact.zip;
+        
+        // Hide results
+        document.querySelectorAll('.search-results').forEach(div => {
+            div.style.display = 'none';
+        });
+    }
+});
+
+// Submit batch
+document.getElementById('submitBatchBtn').addEventListener('click', async () => {
+    if (!confirm('Submit all checks to HubSpot? This will create deals for all non-excluded checks.')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/batch/${batchId}/submit`, {
+            method: 'POST'
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            alert(`Success! ${result.submitted} checks submitted to HubSpot.`);
+            location.reload();
+        } else {
+            alert('Error: ' + result.error);
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+});
+
+// Initial calculation
+updateTotals();
+</script>
+{% endblock %}

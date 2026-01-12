@@ -1,0 +1,31 @@
+# Flask and core dependencies
+Flask==3.0.0
+Flask-SQLAlchemy==3.1.1
+Flask-Migrate==4.0.5
+python-dotenv==1.0.0
+
+# Database
+psycopg2-binary==2.9.9
+
+# PDF processing
+pypdf==3.17.4
+pdf2image==1.16.3
+pdfplumber==0.11.0
+
+# docTR OCR (deep learning, local, free)
+python-doctr[torch]==0.7.0
+
+# HubSpot API
+hubspot-api-client==8.4.1
+
+# Date parsing
+python-dateutil==2.8.2
+
+# HTTP requests
+requests==2.31.0
+
+# Server-Sent Events
+flask-sse==1.0.0
+
+# Image processing
+Pillow==10.1.0

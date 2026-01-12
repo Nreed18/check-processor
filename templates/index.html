@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block title %}Batch List{% endblock %}
+
+{% block content %}
+<div class="batch-list">
+    <div class="page-header">
+        <h2>Recent Batches</h2>
+        <a href="{{ url_for('main.upload_form') }}" class="btn btn-primary">New Batch</a>
+    </div>
+
+    {% if batches %}
+    <table class="batch-table">
+        <thead>
+            <tr>
+                <th>Batch Name</th>
+                <th>Batch #</th>
+                <th>Deposit Date</th>
+                <th>Appeal</th>
+                <th>Checks</th>
+                <th>Expected</th>
+                <th>Actual</th>
+                <th>Status</th>
+                <th>Created</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for batch in batches %}
+            <tr>
+                <td>{{ batch.batch_name }}</td>
+                <td>{{ batch.batch_number }}</td>
+                <td>{{ batch.deposit_date.strftime('%m/%d/%Y') }}</td>
+                <td>{{ batch.appeal_type }}</td>
+                <td>{{ batch.processed_checks }} / {{ batch.total_checks }}</td>
+                <td>${{ '%.2f'|format(batch.expected_total) }}</td>
+                <td>${{ '%.2f'|format(batch.actual_total) }}</td>
+                <td>
+                    <span class="badge badge-{{ batch.status }}">
+                        {{ batch.status }}
+                    </span>
+                </td>
+                <td>{{ batch.created_at.strftime('%m/%d %I:%M %p') }}</td>
+                <td>
+                    <a href="{{ url_for('main.batch_review', batch_id=batch.id) }}" class="btn btn-small">
+                        {% if batch.status == 'processing' %}View Progress
+                        {% elif batch.status == 'completed' %}Review
+                        {% else %}View{% endif %}
+                    </a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+        <p>No batches found in the last 7 days.</p>
+        <a href="{{ url_for('main.upload_form') }}" class="btn btn-primary">Create Your First Batch</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

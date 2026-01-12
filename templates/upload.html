@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+
+{% block title %}Upload Batch{% endblock %}
+
+{% block content %}
+<div class="upload-container">
+    <h2>Start New Batch</h2>
+    
+    <form id="uploadForm" enctype="multipart/form-data">
+        <div class="form-group">
+            <label for="pdf_file">Upload PDF:</label>
+            <input type="file" id="pdf_file" name="pdf_file" accept=".pdf" required>
+            <small>Remote deposit PDF with check images</small>
+        </div>
+
+        <div class="form-group">
+            <label for="deposit_date">Deposit Date:</label>
+            <input type="date" id="deposit_date" name="deposit_date" required>
+        </div>
+
+        <div class="form-group">
+            <label for="batch_number">Batch Number:</label>
+            <input type="text" id="batch_number" name="batch_number" required>
+        </div>
+
+        <div class="form-group">
+            <label for="appeal_type">Appeal:</label>
+            <select id="appeal_type" name="appeal_type" required>
+                <option value="">Select Appeal Type</option>
+                <option value="General Mail - 020">General Mail - 020</option>
+                <option value="Bank Check - 035">Bank Check - 035</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="expected_total">Expected Total:</label>
+            <input type="number" id="expected_total" name="expected_total" step="0.01" placeholder="0.00" required>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Start Processing</button>
+    </form>
+
+    <div id="uploadProgress" class="progress-container" style="display: none;">
+        <h3>Processing Batch...</h3>
+        <div class="progress-bar">
+            <div id="progressFill" class="progress-fill"></div>
+        </div>
+        <p id="progressText">Uploading PDF...</p>
+        <div id="progressMessages"></div>
+    </div>
+</div>
+
+<script>
+document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const formData = new FormData(e.target);
+    const progressContainer = document.getElementById('uploadProgress');
+    const progressFill = document.getElementById('progressFill');
+    const progressText = document.getElementById('progressText');
+    const progressMessages = document.getElementById('progressMessages');
+    
+    // Hide form, show progress
+    e.target.style.display = 'none';
+    progressContainer.style.display = 'block';
+    
+    try {
+        // Upload and create batch
+        const response = await fetch('/api/batch/create', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(result.error || 'Upload failed');
+        }
+        
+        const batchId = result.batch_id;
+        progressText.textContent = 'Batch created! Starting OCR processing...';
+        
+        // Connect to SSE stream for progress updates
+        const eventSource = new EventSource(`/api/batch/${batchId}/stream`);
+        
+        eventSource.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            
+            if (data.check_number && data.total) {
+                const percentage = (data.check_number / data.total) * 100;
+                progressFill.style.width = percentage + '%';
+                progressText.textContent = `Processing check ${data.check_number} of ${data.total}...`;
+            }
+            
+            // Add message to log
+            const msgDiv = document.createElement('div');
+            msgDiv.className = 'progress-message';
+            msgDiv.textContent = `[${new Date().toLocaleTimeString()}] ${data.message}`;
+            progressMessages.appendChild(msgDiv);
+            progressMessages.scrollTop = progressMessages.scrollHeight;
+            
+            // Check if complete
+            if (data.message.includes('complete')) {
+                eventSource.close();
+                setTimeout(() => {
+                    window.location.href = `/batch/${batchId}`;
+                }, 2000);
+            }
+        };
+        
+        eventSource.onerror = () => {
+            eventSource.close();
+            progressText.textContent = 'Processing in background. Redirecting...';
+            setTimeout(() => {
+                window.location.href = `/batch/${batchId}`;
+            }, 2000);
+        };
+        
+    } catch (error) {
+        alert('Error: ' + error.message);
+        e.target.style.display = 'block';
+        progressContainer.style.display = 'none';
+    }
+});
+
+// Set default date to today
+document.getElementById('deposit_date').valueAsDate = new Date();
+</script>
+{% endblock %}
