@@ -23,7 +23,7 @@ cd "$PROJECT_DIR"
 
 echo "📦 Installing system dependencies..."
 sudo apt update
-sudo apt install -y postgresql postgresql-contrib python3-pip python3-venv poppler-utils
+sudo apt install -y postgresql postgresql-contrib python3-pip python3-venv poppler-utils libpango-1.0-0 libpangocairo-1.0-0
 
 echo ""
 echo "🐍 Creating virtual environment..."

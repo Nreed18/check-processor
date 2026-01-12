@@ -1,3 +1,4 @@
+import ctypes.util
 import os
 import re
 from datetime import datetime
@@ -9,10 +10,30 @@ from flask import current_app
 
 class CheckOCR:
     """Handles OCR processing of checks using docTR (deep learning, local, free)"""
+    REQUIRED_LIBRARIES = {
+        "pango-1.0": "libpango-1.0-0",
+        "pangocairo-1.0": "libpangocairo-1.0-0",
+    }
+
+    @staticmethod
+    def missing_system_dependencies():
+        """Return a list of missing system packages required by docTR."""
+        missing = []
+        for library, package in CheckOCR.REQUIRED_LIBRARIES.items():
+            if ctypes.util.find_library(library) is None:
+                missing.append(package)
+        return missing
     
     def __init__(self):
         """Initialize docTR OCR model - no API keys needed!"""
         try:
+            missing = self.missing_system_dependencies()
+            if missing:
+                missing_list = ", ".join(missing)
+                raise ValueError(
+                    "Missing system libraries required for docTR: "
+                    f"{missing_list}. Install with: sudo apt install -y {missing_list}"
+                )
             # Load pretrained docTR model (happens once at startup)
             # Using detection + recognition models
             self.model = ocr_predictor(

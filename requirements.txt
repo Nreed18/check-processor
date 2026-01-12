@@ -14,6 +14,7 @@ pdfplumber==0.11.0
 
 # docTR OCR (deep learning, local, free)
 python-doctr[torch]==0.7.0
+huggingface_hub<0.23
 
 # HubSpot API
 hubspot-api-client==8.4.1

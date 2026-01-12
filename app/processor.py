@@ -239,8 +239,13 @@ def start_batch_processing(batch_id, progress_callback=None):
     processor = BatchProcessor(batch_id)
     if progress_callback:
         processor.set_progress_callback(progress_callback)
-    
-    thread = threading.Thread(target=processor.process_batch)
+    app = current_app._get_current_object()
+
+    def run_with_context():
+        with app.app_context():
+            processor.process_batch()
+
+    thread = threading.Thread(target=run_with_context)
     thread.daemon = True
     thread.start()
     
