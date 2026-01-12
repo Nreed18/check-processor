@@ -1,6 +1,7 @@
 import os
 import threading
 from datetime import datetime
+from decimal import Decimal, InvalidOperation
 from flask import current_app
 from app.models import db, Batch, Check
 from app.ocr import CheckOCR
@@ -134,6 +135,8 @@ class BatchProcessor:
                 'is_money_order': front_data.get('is_money_order', False),
                 'front_image_path': front_path,
             }
+
+            check_data['amount'] = self._to_decimal_amount(check_data.get('amount'))
             
             # Process buck slip if bank batch
             if is_bank_batch and buck_slip_idx:
@@ -234,6 +237,17 @@ class BatchProcessor:
         except Exception as e:
             current_app.logger.error(f"Contact matching error: {e}")
             return None, 'none'
+
+    @staticmethod
+    def _to_decimal_amount(amount):
+        if amount is None:
+            return None
+        if isinstance(amount, Decimal):
+            return amount
+        try:
+            return Decimal(str(amount))
+        except (InvalidOperation, ValueError, TypeError):
+            return None
 
 
 def start_batch_processing(batch_id, progress_callback=None):
