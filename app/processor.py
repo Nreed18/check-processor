@@ -102,6 +102,7 @@ class BatchProcessor:
         except Exception as e:
             current_app.logger.error(f"Batch processing error: {e}")
             self._emit_progress(f"Error: {str(e)}")
+            db.session.rollback()
             if self.batch:
                 self.batch.status = 'error'
                 db.session.commit()
@@ -200,6 +201,7 @@ class BatchProcessor:
         except Exception as e:
             current_app.logger.error(f"Error processing check {check_num}: {e}")
             self._emit_progress(f"Error on check {check_num}: {str(e)}")
+            db.session.rollback()
     
     def _match_contact(self, check_data):
         """Match check to HubSpot contact"""

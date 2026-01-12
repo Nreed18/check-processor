@@ -1,7 +1,15 @@
 from datetime import datetime, timedelta
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import event
+from sqlalchemy.engine import Engine
 
 db = SQLAlchemy()
+
+
+@event.listens_for(Engine, "connect")
+def set_client_encoding(dbapi_connection, connection_record):
+    if hasattr(dbapi_connection, "set_client_encoding"):
+        dbapi_connection.set_client_encoding("UTF8")
 
 class Batch(db.Model):
     """Represents a batch of checks to process"""
