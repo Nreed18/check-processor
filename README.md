@@ -36,10 +36,10 @@ cd /home/claude
 
 ```bash
 sudo apt update
-sudo apt install -y postgresql postgresql-contrib python3-pip python3-venv poppler-utils
+sudo apt install -y postgresql postgresql-contrib python3-pip python3-venv poppler-utils libpango-1.0-0 libpangocairo-1.0-0
 ```
 
-**Note:** docTR is a Python package and will be installed via pip (no system packages needed)
+**Note:** docTR is a Python package and will be installed via pip, but it does require system libraries for font rendering (Pango).
 
 ### 3. Create Virtual Environment
 
@@ -260,6 +260,12 @@ sudo systemctl start cloudflared
 # Manually download models (if behind firewall)
 python3 -c "from doctr.models import ocr_predictor; ocr_predictor(pretrained=True)"
 # Models cache in ~/.cache/doctr/models/
+```
+
+**Problem**: `libpango-1.0-0` missing / docTR fails to load
+```bash
+sudo apt update
+sudo apt install -y libpango-1.0-0 libpangocairo-1.0-0
 ```
 
 **Problem**: Amounts not detected
